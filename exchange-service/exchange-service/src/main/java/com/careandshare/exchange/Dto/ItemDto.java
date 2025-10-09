@@ -1,16 +1,12 @@
-package com.careandshare.exchange.Model;
+package com.careandshare.exchange.Dto;
 
-
-import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-@Entity
-@Table(name = "items")
-public class Item {
+public class ItemDto {
 
-    @Id
-    @NotNull(message = "Id must be provided")
+    @NotNull
     private Long id;
 
     @NotNull
@@ -19,8 +15,12 @@ public class Item {
     @NotNull
     private String type;
 
+    /**
+     * Category should be one of: resell, donate, exchange (case-insensitive)
+     */
     @NotNull
-    private String category; // expected values: resell/donate/exchange
+    @Pattern(regexp = "^(?i)(resell|donate|exchange)$", message = "Category must be exchange, donate or resell")
+    private String category;
 
     @NotNull
     private String itemCondition;
@@ -30,40 +30,17 @@ public class Item {
     private String ownerName;
     private String ownerEmail;
 
-    @NotNull(message = "Phone number is required")
+    @NotNull
     @Size(min = 10, max = 10, message = "Phone number must be exactly 10 digits")
     private String phoneNumber;
 
-    private String address; // <- NEW
+    private String address;
 
-    @Lob
-    private byte[] image;
-
-    private String imageType;
-
-    // status now plain String: "pending", "available", "sold"
+    /**
+     * Status should be one of: pending, available, sold (case-insensitive)
+     */
+    @Pattern(regexp = "^(?i)(pending|available|sold)$", message = "Status must be pending, available or sold")
     private String status;
-
-    public Item() {}
-
-    public Item(Long id, String title, String type, String category, String itemCondition,
-                String description, Double price, String ownerName, String ownerEmail,
-                String phoneNumber, String address, byte[] image, String imageType, String status) {
-        this.id = id;
-        this.title = title;
-        this.type = type;
-        this.category = category;
-        this.itemCondition = itemCondition;
-        this.description = description;
-//        this.price = price;
-        this.ownerName = ownerName;
-        this.ownerEmail = ownerEmail;
-        this.phoneNumber = phoneNumber;
-        this.address = address;
-        this.image = image;
-        this.imageType = imageType;
-        this.status = status;
-    }
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -84,8 +61,8 @@ public class Item {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-//    public Double getPrice() { return price; }
-//    public void setPrice(Double price) { this.price = price; }
+    public Double getPrice() { return price; }
+    public void setPrice(Double price) { this.price = price; }
 
     public String getOwnerName() { return ownerName; }
     public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
@@ -98,12 +75,6 @@ public class Item {
 
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
-
-    public byte[] getImage() { return image; }
-    public void setImage(byte[] image) { this.image = image; }
-
-    public String getImageType() { return imageType; }
-    public void setImageType(String imageType) { this.imageType = imageType; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
