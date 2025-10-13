@@ -1,6 +1,5 @@
 package com.careandshare.exchange.Model;
 
-
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,7 +9,7 @@ import jakarta.validation.constraints.Size;
 public class Item {
 
     @Id
-    @NotNull(message = "Id must be provided")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotNull
@@ -20,13 +19,14 @@ public class Item {
     private String type;
 
     @NotNull
-    private String category; // expected values: resell/donate/exchange
+    private String category; // exchange, donate, resell
 
     @NotNull
-    private String itemCondition;
+    private String itemCondition; // excellent, good, fair
 
+    @Column(length = 1000)
     private String description;
-    private Double price;
+
     private String ownerName;
     private String ownerEmail;
 
@@ -34,28 +34,40 @@ public class Item {
     @Size(min = 10, max = 10, message = "Phone number must be exactly 10 digits")
     private String phoneNumber;
 
-    private String address; // <- NEW
+    private String address;
 
     @Lob
+    @Column(columnDefinition = "LONGBLOB")
     private byte[] image;
 
     private String imageType;
 
-    // status now plain String: "pending", "available", "sold"
-    private String status;
+    private String status; // pending, approved, rejected
+
+    private String location;
+
+    private String preferredCategory;
+
+    private Boolean shippingAvailable;
+
+    @Column(name = "submitted_date")
+    private String submittedDate;
+
+    private String submittedBy; // Email of the user who submitted
 
     public Item() {}
 
     public Item(Long id, String title, String type, String category, String itemCondition,
-                String description, Double price, String ownerName, String ownerEmail,
-                String phoneNumber, String address, byte[] image, String imageType, String status) {
+                String description, String ownerName, String ownerEmail,
+                String phoneNumber, String address, byte[] image, String imageType,
+                String status, String location, String preferredCategory, Boolean shippingAvailable,
+                String submittedDate, String submittedBy) {
         this.id = id;
         this.title = title;
         this.type = type;
         this.category = category;
         this.itemCondition = itemCondition;
         this.description = description;
-//        this.price = price;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
         this.phoneNumber = phoneNumber;
@@ -63,6 +75,11 @@ public class Item {
         this.image = image;
         this.imageType = imageType;
         this.status = status;
+        this.location = location;
+        this.preferredCategory = preferredCategory;
+        this.shippingAvailable = shippingAvailable;
+        this.submittedDate = submittedDate;
+        this.submittedBy = submittedBy;
     }
 
     // Getters and Setters
@@ -84,9 +101,6 @@ public class Item {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-//    public Double getPrice() { return price; }
-//    public void setPrice(Double price) { this.price = price; }
-
     public String getOwnerName() { return ownerName; }
     public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
 
@@ -107,4 +121,19 @@ public class Item {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+
+    public String getPreferredCategory() { return preferredCategory; }
+    public void setPreferredCategory(String preferredCategory) { this.preferredCategory = preferredCategory; }
+
+    public Boolean getShippingAvailable() { return shippingAvailable; }
+    public void setShippingAvailable(Boolean shippingAvailable) { this.shippingAvailable = shippingAvailable; }
+
+    public String getSubmittedDate() { return submittedDate; }
+    public void setSubmittedDate(String submittedDate) { this.submittedDate = submittedDate; }
+
+    public String getSubmittedBy() { return submittedBy; }
+    public void setSubmittedBy(String submittedBy) { this.submittedBy = submittedBy; }
 }

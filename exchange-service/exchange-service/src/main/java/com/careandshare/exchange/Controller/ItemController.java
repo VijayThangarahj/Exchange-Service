@@ -1,126 +1,172 @@
 package com.careandshare.exchange.Controller;
 
-import com.careandshare.exchange.Dto.ItemDto;
 import com.careandshare.exchange.Model.Item;
 import com.careandshare.exchange.Repository.ItemRepository;
-
-import com.careandshare.exchange.Service.ItemService;
-import org.modelmapper.ModelMapper;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.*;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/items")
-@CrossOrigin(origins = "*") // allow requests from any origin for testing; lock down in production
+@CrossOrigin(origins = "*")
 public class ItemController {
 
-    private final ItemService itemService;
-    private final ItemRepository itemRepository;
-    private final ModelMapper modelMapper;
-//    private final ModelMapper modelMapper;
+    @Autowired
+    private ItemRepository itemRepository;
 
-    public ItemController(ItemService itemService, ItemRepository itemRepository, ModelMapper modelMapper) {
-        this.itemService = itemService;
-        this.itemRepository = itemRepository;
-        this.modelMapper = modelMapper;
+    @PostMapping
+    public ResponseEntity<Item> createItem(@RequestBody Item item) {
+        try {
+            // Set default status if not provided
+            if (item.getStatus() == null) {
+                item.setStatus("pending");
+            }
+
+            // Set submitted date
+            if (item.getSubmittedDate() == null) {
+                item.setSubmittedDate(LocalDate.now().toString());
+            }
+
+            // Set submitted by if not provided
+            if (item.getSubmittedBy() == null && item.getOwnerEmail() != null) {
+                item.setSubmittedBy(item.getOwnerEmail());
+            }
+
+            Item savedItem = itemRepository.save(item);
+            return ResponseEntity.ok(savedItem);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
     }
 
-    // 🔹 Get all items
+    // New endpoint to create item with image
+    @PostMapping("/with-image")
+    public ResponseEntity<Item> createItemWithImage(
+            @RequestParam("title") String title,
+            @RequestParam("type") String type,
+            @RequestParam("category") String category,
+            @RequestParam("itemCondition") String itemCondition,
+            @RequestParam("description") String description,
+            @RequestParam("ownerName") String ownerName,
+            @RequestParam("ownerEmail") String ownerEmail,
+            @RequestParam("phoneNumber") String phoneNumber,
+            @RequestParam("address") String address,
+            @RequestParam("location") String location,
+            @RequestParam(value = "preferredCategory", required = false) String preferredCategory,
+            @RequestParam(value = "shippingAvailable", defaultValue = "false") Boolean shippingAvailable,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+
+        try {
+            Item item = new Item();
+            item.setTitle(title);
+            item.setType(type);
+            item.setCategory(category);
+            item.setItemCondition(itemCondition);
+            item.setDescription(description);
+            item.setOwnerName(ownerName);
+            item.setOwnerEmail(ownerEmail);
+            item.setPhoneNumber(phoneNumber);
+            item.setAddress(address);
+            item.setLocation(location);
+            item.setPreferredCategory(preferredCategory);
+            item.setShippingAvailable(shippingAvailable);
+            item.setStatus("pending");
+            item.setSubmittedDate(LocalDate.now().toString());
+            item.setSubmittedBy(ownerEmail);
+
+            // Handle image upload
+            if (image != null && !image.isEmpty()) {
+                item.setImage(image.getBytes());
+                item.setImageType(image.getContentType());
+            }
+
+            Item savedItem = itemRepository.save(item);
+            return ResponseEntity.ok(savedItem);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @GetMapping
-    public ResponseEntity<List<Item>> getAllItems() {
-        return ResponseEntity.ok(itemService.getAllItems());
+    public List<Item> getAllItems() {
+        return itemRepository.findAll();
     }
 
-    // 🔹 Get item by id
     @GetMapping("/{id}")
     public ResponseEntity<Item> getItemById(@PathVariable Long id) {
-        Optional<Item> optionalItem = itemService.getItemById(id);
-        return optionalItem.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Optional<Item> item = itemRepository.findById(id);
+        return item.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 
-    // 🔹 Create multiple items (your provided method)
-    @PostMapping
-    public ResponseEntity<List<ItemDto>> createItems(@RequestBody List<ItemDto> items) {
-        List<ItemDto> savedItems = new ArrayList<>();
-        for (ItemDto item : items) {
-            Item saved = itemRepository.save(modelMapper.map(item, Item.class));
-            savedItems.add(modelMapper.map(saved, ItemDto.class));
-        }
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedItems);
+    // Add these new endpoints for status filtering
+    @GetMapping("/status/{status}")
+    public List<Item> getItemsByStatus(@PathVariable String status) {
+        return itemRepository.findByStatusIgnoreCase(status);
     }
 
-    // 🔹 Partial update
-    @PutMapping("/{id}")
-    public ResponseEntity<Item> updateItem(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
-        try {
-            Item updatedItem = itemService.updateItemPartial(id, updates);
+    @GetMapping("/category/{category}/status/{status}")
+    public List<Item> getItemsByCategoryAndStatus(@PathVariable String category, @PathVariable String status) {
+        return itemRepository.findByCategoryIgnoreCaseAndStatusIgnoreCase(category, status);
+    }
+
+    // Add endpoints for approve/reject
+    @PutMapping("/{id}/approve")
+    public ResponseEntity<Item> approveItem(@PathVariable Long id) {
+        Optional<Item> optionalItem = itemRepository.findById(id);
+        if (optionalItem.isPresent()) {
+            Item item = optionalItem.get();
+            item.setStatus("approved");
+            Item updatedItem = itemRepository.save(item);
             return ResponseEntity.ok(updatedItem);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
+        return ResponseEntity.notFound().build();
     }
 
-    // 🔹 Delete
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteItem(@PathVariable Long id) {
-        try {
-            itemService.deleteItem(id);
-            return ResponseEntity.ok("Item deleted successfully");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<Item> rejectItem(@PathVariable Long id) {
+        Optional<Item> optionalItem = itemRepository.findById(id);
+        if (optionalItem.isPresent()) {
+            Item item = optionalItem.get();
+            item.setStatus("rejected");
+            Item updatedItem = itemRepository.save(item);
+            return ResponseEntity.ok(updatedItem);
         }
+        return ResponseEntity.notFound().build();
     }
 
-    // 🔹 Upload image
+    // Get items by owner email
+    @GetMapping("/owner/{email}")
+    public List<Item> getItemsByOwner(@PathVariable String email) {
+        return itemRepository.findByOwnerEmailIgnoreCase(email);
+    }
+
+    // Update item image
     @PostMapping("/{id}/image")
-    public ResponseEntity<String> uploadImage(@PathVariable Long id,
-                                              @RequestParam("image") MultipartFile file) {
+    public ResponseEntity<Item> updateItemImage(@PathVariable Long id,
+                                                @RequestParam("image") MultipartFile image) {
         try {
-            itemService.saveImage(id, file);
-            return ResponseEntity.ok("Image uploaded successfully");
+            Optional<Item> optionalItem = itemRepository.findById(id);
+            if (optionalItem.isPresent()) {
+                Item item = optionalItem.get();
+                item.setImage(image.getBytes());
+                item.setImageType(image.getContentType());
+                Item updatedItem = itemRepository.save(item);
+                return ResponseEntity.ok(updatedItem);
+            }
+            return ResponseEntity.notFound().build();
         } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to upload image: " + e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+
+
         }
-    }
-
-    // 🔹 Get item with image as Base64
-    @GetMapping("/{id}/image")
-    public ResponseEntity<Map<String, Object>> getItemWithImage(@PathVariable Long id) {
-        Optional<Item> optionalItem = itemService.getItemById(id);
-
-        if (!optionalItem.isPresent()) return ResponseEntity.notFound().build();
-
-        Item item = optionalItem.get();
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", item.getId());
-        response.put("title", item.getTitle());
-        response.put("type", item.getType());
-        response.put("category", item.getCategory());
-        response.put("status", item.getStatus());
-        response.put("ownerName", item.getOwnerName());
-        response.put("ownerEmail", item.getOwnerEmail());
-        response.put("phoneNumber", item.getPhoneNumber());
-        response.put("address", item.getAddress());
-//        response.put("price", item.getPrice());
-        response.put("description", item.getDescription());
-
-        if (item.getImage() != null) {
-            response.put("imageBase64", Base64.getEncoder().encodeToString(item.getImage()));
-            response.put("imageType", item.getImageType());
-        } else {
-            response.put("imageBase64", null);
-            response.put("imageType", null);
-        }
-
-        return ResponseEntity.ok(response);
     }
 }

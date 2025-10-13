@@ -1,5 +1,6 @@
 package com.careandshare.exchange.Service;
 
+
 import com.careandshare.exchange.Dto.ItemDto;
 import com.careandshare.exchange.Model.ExchangeRequest;
 import com.careandshare.exchange.Model.Item;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,44 +21,40 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final ExchangeRequestRepository exchangeRequestRepository;
 
-    // Updated constructor to include ExchangeRequestRepository
     public ItemService(ItemRepository itemRepository, ExchangeRequestRepository exchangeRequestRepository) {
         this.itemRepository = itemRepository;
         this.exchangeRequestRepository = exchangeRequestRepository;
     }
 
-    // 🔹 Create item (address + status supported)
+    // FIXED METHOD - Use setters instead of constructor
     public Item createItem(ItemDto dto) {
-        Item item = new Item(
-                dto.getId(),
-                dto.getTitle(),
-                dto.getType(),
-                dto.getCategory(),
-                dto.getItemCondition(),
-                dto.getDescription(),
-                dto.getPrice(),
-                dto.getOwnerName(),
-                dto.getOwnerEmail(),
-                dto.getPhoneNumber(),
-                dto.getAddress(),   // address
-                null,
-                null,
-                dto.getStatus()     // status as plain String
-        );
+        Item item = new Item();
+        item.setTitle(dto.getTitle());
+        item.setType(dto.getType());
+        item.setCategory(dto.getCategory());
+        item.setItemCondition(dto.getItemCondition());
+        item.setDescription(dto.getDescription());
+        item.setOwnerName(dto.getOwnerName());
+        item.setOwnerEmail(dto.getOwnerEmail());
+        item.setPhoneNumber(dto.getPhoneNumber());
+        item.setAddress(dto.getAddress());
+        item.setStatus(dto.getStatus() != null ? dto.getStatus() : "pending");
+        item.setLocation(dto.getLocation());
+        item.setPreferredCategory(dto.getPreferredCategory());
+        item.setShippingAvailable(dto.getShippingAvailable());
+        item.setSubmittedDate(LocalDate.now().toString());
+
         return itemRepository.save(item);
     }
 
-    // 🔹 Get all items
     public List<Item> getAllItems() {
         return itemRepository.findAll();
     }
 
-    // 🔹 Get item by ID
     public Optional<Item> getItemById(Long id) {
         return itemRepository.findById(id);
     }
 
-    // 🔹 Partial update
     public Item updateItemPartial(Long id, Map<String, Object> updates) {
         Item item = itemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
@@ -68,28 +66,25 @@ public class ItemService {
                 case "category": item.setCategory((String) value); break;
                 case "itemCondition": item.setItemCondition((String) value); break;
                 case "description": item.setDescription((String) value); break;
-//                case "price":
-//                    if (value != null) item.setPrice(Double.valueOf(value.toString()));
-//                    else item.setPrice(null);
-//                    break;
                 case "ownerName": item.setOwnerName((String) value); break;
                 case "ownerEmail": item.setOwnerEmail((String) value); break;
                 case "phoneNumber": item.setPhoneNumber((String) value); break;
                 case "address": item.setAddress((String) value); break;
                 case "status": item.setStatus((String) value); break;
+                case "location": item.setLocation((String) value); break;
+                case "preferredCategory": item.setPreferredCategory((String) value); break;
+                case "shippingAvailable": item.setShippingAvailable((Boolean) value); break;
             }
         });
 
         return itemRepository.save(item);
     }
 
-    // 🔹 Delete item
     public void deleteItem(Long id) {
         if (!itemRepository.existsById(id)) throw new RuntimeException("Item not found");
         itemRepository.deleteById(id);
     }
 
-    // 🔹 Upload image
     public void saveImage(Long id, MultipartFile file) throws IOException {
         Optional<Item> optionalItem = itemRepository.findById(id);
         if (!optionalItem.isPresent()) throw new RuntimeException("Item not found");
@@ -99,33 +94,54 @@ public class ItemService {
         itemRepository.save(item);
     }
 
-    // ------------------ EXCHANGE FUNCTIONALITY ------------------
-
-    // 🔹 Get all exchange items
     public List<Item> getExchangeItems() {
-        return itemRepository.findByCategoryIgnoreCaseAndStatusIgnoreCase("exchange", "available");
+        return itemRepository.findByCategoryIgnoreCaseAndStatusIgnoreCase("exchange", "approved");
     }
 
-    // 🔹 Create exchange request
+    public List<Item> getItemsByStatus(String status) {
+        return itemRepository.findByStatusIgnoreCase(status);
+    }
+
+    public List<Item> getItemsByCategory(String category) {
+        return itemRepository.findByCategoryIgnoreCase(category);
+    }
+
+    public List<Item> getItemsByOwnerEmail(String email) {
+        return itemRepository.findByOwnerEmailIgnoreCase(email);
+    }
+
+    public List<Item> getItemsBySubmittedBy(String email) {
+        return itemRepository.findBySubmittedByIgnoreCase(email);
+    }
+
+    public List<Item> searchItems(String searchTerm) {
+        return itemRepository.searchItems(searchTerm);
+    }
+
     public ExchangeRequest createExchangeRequest(Long requesterItemId, Long requestedItemId) {
         Item requesterItem = itemRepository.findById(requesterItemId)
                 .orElseThrow(() -> new RuntimeException("Requester item not found"));
         Item requestedItem = itemRepository.findById(requestedItemId)
                 .orElseThrow(() -> new RuntimeException("Requested item not found"));
 
-        if (!"available".equalsIgnoreCase(requesterItem.getStatus()) ||
+        if (!"approved".equalsIgnoreCase(requesterItem.getStatus()) &&
+                !"available".equalsIgnoreCase(requesterItem.getStatus())) {
+            throw new RuntimeException("Requester item is not available for exchange");
+        }
+
+        if (!"approved".equalsIgnoreCase(requestedItem.getStatus()) &&
                 !"available".equalsIgnoreCase(requestedItem.getStatus())) {
-            throw new RuntimeException("One or both items are not available for exchange");
+            throw new RuntimeException("Requested item is not available for exchange");
         }
 
         ExchangeRequest request = new ExchangeRequest();
         request.setRequesterItemId(requesterItemId);
         request.setRequestedItemId(requestedItemId);
+        request.setStatus("pending");
 
         return exchangeRequestRepository.save(request);
     }
 
-    // 🔹 Accept exchange request
     public ExchangeRequest acceptExchangeRequest(Long requestId) {
         ExchangeRequest request = exchangeRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Exchange request not found"));
@@ -147,7 +163,6 @@ public class ItemService {
         return exchangeRequestRepository.save(request);
     }
 
-    // 🔹 Reject exchange request
     public ExchangeRequest rejectExchangeRequest(Long requestId) {
         ExchangeRequest request = exchangeRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Exchange request not found"));
@@ -160,9 +175,10 @@ public class ItemService {
         return exchangeRequestRepository.save(request);
     }
 
-    // 🔹 List exchange requests (all or by status)
     public List<ExchangeRequest> listExchangeRequests(String status) {
-        if (status == null) return exchangeRequestRepository.findAll();
+        if (status == null || status.isEmpty()) {
+            return exchangeRequestRepository.findAll();
+        }
         return exchangeRequestRepository.findByStatusIgnoreCase(status);
     }
 }
