@@ -135,7 +135,7 @@ public class ItemService {
         }
 
         ExchangeRequest request = new ExchangeRequest();
-        request.setRequesterItemId(requesterItemId);
+        request.setRequestedItemId(requesterItemId);
         request.setRequestedItemId(requestedItemId);
         request.setStatus("pending");
 
@@ -150,7 +150,7 @@ public class ItemService {
             throw new RuntimeException("Exchange request is not pending");
         }
 
-        Item requesterItem = itemRepository.findById(request.getRequesterItemId()).get();
+        Item requesterItem = itemRepository.findById(request.getRequestedItemId()).get();
         Item requestedItem = itemRepository.findById(request.getRequestedItemId()).get();
 
         requesterItem.setStatus("sold");

@@ -10,9 +10,8 @@ import java.util.List;
 @Repository
 public interface ExchangeRequestRepository extends JpaRepository<ExchangeRequest, Long> {
 
-    // Optional: find by status
     List<ExchangeRequest> findByStatusIgnoreCase(String status);
-
-    // Find requests for a specific item
-    List<ExchangeRequest> findByRequestedItemIdOrRequesterItemId(Long requestedItemId, Long requesterItemId);
+    List<ExchangeRequest> findByRequestedItemId(Long requestedItemId);
+    List<ExchangeRequest> findByExchangerEmail(String exchangerEmail);
+    List<ExchangeRequest> findByStatusOrderBySubmittedDateDesc(String status);
 }
