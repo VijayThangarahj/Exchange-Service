@@ -17,9 +17,10 @@ public class ExchangeRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id")
+    private Long id;  // Changed from offeredItemId to id
 
-    // Requester Information
+    // Requester Information (Person who wants to exchange)
     @Column(name = "exchanger_name", nullable = false)
     private String exchangerName;
 
@@ -29,10 +30,7 @@ public class ExchangeRequest {
     @Column(name = "exchanger_phone", nullable = false)
     private String exchangerPhone;
 
-    // Item Being Requested
-    @Column(name = "requested_item_id", nullable = false)
-    private Long requestedItemId;
-
+    // Item Being Requested (Item they want)
     @Column(name = "requested_item_title")
     private String requestedItemTitle;
 
@@ -42,10 +40,7 @@ public class ExchangeRequest {
     @Column(name = "item_owner_email")
     private String itemOwnerEmail;
 
-    // Item Being Offered
-    @Column(name = "offered_item_id")
-    private Long offeredItemId;
-
+    // Item Being Offered (Item they're offering)
     @Column(name = "offered_item_title")
     private String offeredItemTitle;
 
@@ -61,7 +56,7 @@ public class ExchangeRequest {
 
     // Exchange Details
     @Column(name = "exchange_method", nullable = false)
-    private String exchangeMethod; // "meet_in_person" or "shipping"
+    private String exchangeMethod;
 
     @Column(name = "message", length = 2000)
     private String message;
@@ -71,7 +66,7 @@ public class ExchangeRequest {
 
     // Status and Timestamps
     @Column(name = "status", nullable = false)
-    private String status = "PENDING"; // PENDING, APPROVED, REJECTED, COMPLETED
+    private String status = "PENDING";
 
     @Column(name = "submitted_date")
     private LocalDateTime submittedDate;
@@ -79,11 +74,13 @@ public class ExchangeRequest {
     @Column(name = "reviewed_date")
     private LocalDateTime reviewedDate;
 
-    @Column(name = "admin_notes", length = 1000)
-    private String adminNotes;
-
     @PrePersist
     protected void onCreate() {
-        submittedDate = LocalDateTime.now();
+        if (submittedDate == null) {
+            submittedDate = LocalDateTime.now();
+        }
+        if (status == null || status.isEmpty()) {
+            status = "PENDING";
+        }
     }
 }

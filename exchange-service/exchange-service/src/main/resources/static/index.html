@@ -2666,10 +2666,10 @@
         document.getElementById('exchangeSuccessModal').style.display = 'none';
     }
 
-    // Load Exchange Requests for Admin
+    // Load Exchange Requests for Admin - UPDATED TO USE DTO ENDPOINT
     async function loadExchangeRequests() {
         try {
-            const response = await fetch(`${API_BASE_URL}/exchange-requests/pending`);
+            const response = await fetch(`${API_BASE_URL}/exchange-requests/dto`);
             if (response.ok) {
                 const exchangeRequests = await response.json();
                 displayExchangeRequests(exchangeRequests);
@@ -2683,7 +2683,7 @@
         }
     }
 
-    // Display Exchange Requests in Admin Panel
+    // Display Exchange Requests in Admin Panel - FIXED IMAGE DISPLAY
     function displayExchangeRequests(requests) {
         const container = document.getElementById('exchangeRequestsList');
         const noRequests = document.getElementById('noExchangeRequests');
@@ -2701,14 +2701,14 @@
             const requestEl = document.createElement('div');
             requestEl.className = 'exchange-request-item';
 
-            // Handle offered item image
+            // Handle offered item image - FIXED: Now uses offeredItemImage from DTO
             let offeredImageUrl = "https://images.unsplash.com/photo-1560769684-5507c55e44e0?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80";
+
+            // Check if offeredItemImage exists and is a Base64 string
             if (request.offeredItemImage) {
                 try {
-                    if (request.offeredItemImage instanceof Array || request.offeredItemImage instanceof Uint8Array) {
-                        const base64 = btoa(String.fromCharCode(...new Uint8Array(request.offeredItemImage)));
-                        offeredImageUrl = `data:${request.offeredImageType || 'image/jpeg'};base64,${base64}`;
-                    }
+                    // The DTO already converts the image to Base64, so we can use it directly
+                    offeredImageUrl = `data:${request.offeredImageType || 'image/jpeg'};base64,${request.offeredItemImage}`;
                 } catch (error) {
                     console.error('Error processing offered item image:', error);
                 }
@@ -2733,7 +2733,7 @@
 
                 <div class="exchange-request-images">
                     <div class="exchange-request-image">
-                        <img src="${offeredImageUrl}" alt="Offered Item">
+                        <img src="${offeredImageUrl}" alt="Offered Item" onerror="this.src='https://images.unsplash.com/photo-1560769684-5507c55e44e0?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80'">
                         <small>Offered Item</small>
                     </div>
                 </div>
@@ -2893,6 +2893,8 @@
         // Load initial data
         loadItems();
     });
+
+
 </script>
 </body>
 </html>

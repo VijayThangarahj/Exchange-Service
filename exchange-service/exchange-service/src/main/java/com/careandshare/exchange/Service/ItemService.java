@@ -1,6 +1,5 @@
 package com.careandshare.exchange.Service;
 
-
 import com.careandshare.exchange.Dto.ItemDto;
 import com.careandshare.exchange.Model.ExchangeRequest;
 import com.careandshare.exchange.Model.Item;
@@ -26,7 +25,7 @@ public class ItemService {
         this.exchangeRequestRepository = exchangeRequestRepository;
     }
 
-    // FIXED METHOD - Use setters instead of constructor
+    // Create new item
     public Item createItem(ItemDto dto) {
         Item item = new Item();
         item.setTitle(dto.getTitle());
@@ -47,14 +46,17 @@ public class ItemService {
         return itemRepository.save(item);
     }
 
+    // Get all items
     public List<Item> getAllItems() {
         return itemRepository.findAll();
     }
 
+    // Get item by ID
     public Optional<Item> getItemById(Long id) {
         return itemRepository.findById(id);
     }
 
+    // Partial update item
     public Item updateItemPartial(Long id, Map<String, Object> updates) {
         Item item = itemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
@@ -80,11 +82,13 @@ public class ItemService {
         return itemRepository.save(item);
     }
 
+    // Delete item
     public void deleteItem(Long id) {
         if (!itemRepository.existsById(id)) throw new RuntimeException("Item not found");
         itemRepository.deleteById(id);
     }
 
+    // Save item image
     public void saveImage(Long id, MultipartFile file) throws IOException {
         Optional<Item> optionalItem = itemRepository.findById(id);
         if (!optionalItem.isPresent()) throw new RuntimeException("Item not found");
@@ -94,39 +98,55 @@ public class ItemService {
         itemRepository.save(item);
     }
 
+    // Get exchange items
     public List<Item> getExchangeItems() {
         return itemRepository.findByCategoryIgnoreCaseAndStatusIgnoreCase("exchange", "approved");
     }
 
+    // Get items by status
     public List<Item> getItemsByStatus(String status) {
         return itemRepository.findByStatusIgnoreCase(status);
     }
 
+    // Get items by category
     public List<Item> getItemsByCategory(String category) {
         return itemRepository.findByCategoryIgnoreCase(category);
     }
 
+    // Get items by owner email
     public List<Item> getItemsByOwnerEmail(String email) {
         return itemRepository.findByOwnerEmailIgnoreCase(email);
     }
 
+    // Get items by submitted by
     public List<Item> getItemsBySubmittedBy(String email) {
         return itemRepository.findBySubmittedByIgnoreCase(email);
     }
 
+    // Search items
     public List<Item> searchItems(String searchTerm) {
         return itemRepository.searchItems(searchTerm);
     }
 
-    public ExchangeRequest createExchangeRequest(Long requesterItemId, Long requestedItemId) {
-        Item requesterItem = itemRepository.findById(requesterItemId)
-                .orElseThrow(() -> new RuntimeException("Requester item not found"));
+    // List exchange requests
+    public List<ExchangeRequest> listExchangeRequests(String status) {
+        if (status != null && !status.isEmpty()) {
+            return exchangeRequestRepository.findByStatusIgnoreCase(status);
+        } else {
+            return exchangeRequestRepository.findAll();
+        }
+    }
+
+    // Create exchange request
+    public ExchangeRequest createExchangeRequest(Long offeredItemId, Long requestedItemId) {
+        Item offeredItem = itemRepository.findById(offeredItemId)
+                .orElseThrow(() -> new RuntimeException("Offered item not found"));
         Item requestedItem = itemRepository.findById(requestedItemId)
                 .orElseThrow(() -> new RuntimeException("Requested item not found"));
 
-        if (!"approved".equalsIgnoreCase(requesterItem.getStatus()) &&
-                !"available".equalsIgnoreCase(requesterItem.getStatus())) {
-            throw new RuntimeException("Requester item is not available for exchange");
+        if (!"approved".equalsIgnoreCase(offeredItem.getStatus()) &&
+                !"available".equalsIgnoreCase(offeredItem.getStatus())) {
+            throw new RuntimeException("Offered item is not available for exchange");
         }
 
         if (!"approved".equalsIgnoreCase(requestedItem.getStatus()) &&
@@ -135,50 +155,113 @@ public class ItemService {
         }
 
         ExchangeRequest request = new ExchangeRequest();
-        request.setRequestedItemId(requesterItemId);
-        request.setRequestedItemId(requestedItemId);
-        request.setStatus("pending");
+
+        // Set offered item information
+        request.setOfferedItemTitle(offeredItem.getTitle());
+        request.setOfferedItemDescription(offeredItem.getDescription());
+
+        // Set requested item information
+        request.setRequestedItemTitle(requestedItem.getTitle());
+        request.setItemOwnerName(requestedItem.getOwnerName());
+        request.setItemOwnerEmail(requestedItem.getOwnerEmail());
+
+        // Set requester information from the offered item owner
+        request.setExchangerName(offeredItem.getOwnerName());
+        request.setExchangerEmail(offeredItem.getOwnerEmail());
+        request.setExchangerPhone(offeredItem.getPhoneNumber());
+
+        // Set exchange details
+        request.setExchangeMethod("meet_in_person");
+        request.setPreferredLocation(offeredItem.getLocation());
+        request.setMessage("Exchange request for " + requestedItem.getTitle());
+
+        // Set status
+        request.setStatus("PENDING");
 
         return exchangeRequestRepository.save(request);
     }
 
+    // Accept exchange request
     public ExchangeRequest acceptExchangeRequest(Long requestId) {
         ExchangeRequest request = exchangeRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Exchange request not found"));
 
-        if (!"pending".equalsIgnoreCase(request.getStatus())) {
+        if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
             throw new RuntimeException("Exchange request is not pending");
         }
 
-        Item requesterItem = itemRepository.findById(request.getRequestedItemId()).get();
-        Item requestedItem = itemRepository.findById(request.getRequestedItemId()).get();
+        // Since we don't have the original item ID, find items by title and owner
+        String offeredItemTitle = request.getOfferedItemTitle();
+        String exchangerEmail = request.getExchangerEmail();
 
-        requesterItem.setStatus("sold");
-        requestedItem.setStatus("sold");
+        if (offeredItemTitle != null && exchangerEmail != null) {
+            List<Item> offeredItems = itemRepository.findByTitleAndOwnerEmail(offeredItemTitle, exchangerEmail);
+            if (!offeredItems.isEmpty()) {
+                Item offeredItem = offeredItems.get(0);
+                offeredItem.setStatus("sold");
+                itemRepository.save(offeredItem);
+            }
+        }
 
-        itemRepository.save(requesterItem);
-        itemRepository.save(requestedItem);
+        // Update requested item status
+        String requestedItemTitle = request.getRequestedItemTitle();
+        String itemOwnerEmail = request.getItemOwnerEmail();
 
-        request.setStatus("accepted");
+        if (requestedItemTitle != null && itemOwnerEmail != null) {
+            List<Item> requestedItems = itemRepository.findByTitleAndOwnerEmail(requestedItemTitle, itemOwnerEmail);
+            if (!requestedItems.isEmpty()) {
+                Item requestedItem = requestedItems.get(0);
+                requestedItem.setStatus("sold");
+                itemRepository.save(requestedItem);
+            }
+        }
+
+        request.setStatus("APPROVED");
+        request.setReviewedDate(java.time.LocalDateTime.now());
+
         return exchangeRequestRepository.save(request);
     }
 
+    // Reject exchange request
     public ExchangeRequest rejectExchangeRequest(Long requestId) {
         ExchangeRequest request = exchangeRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Exchange request not found"));
 
-        if (!"pending".equalsIgnoreCase(request.getStatus())) {
+        if (!"PENDING".equalsIgnoreCase(request.getStatus())) {
             throw new RuntimeException("Exchange request is not pending");
         }
 
-        request.setStatus("rejected");
+        request.setStatus("REJECTED");
+        request.setReviewedDate(java.time.LocalDateTime.now());
+
         return exchangeRequestRepository.save(request);
     }
 
-    public List<ExchangeRequest> listExchangeRequests(String status) {
-        if (status == null || status.isEmpty()) {
-            return exchangeRequestRepository.findAll();
-        }
-        return exchangeRequestRepository.findByStatusIgnoreCase(status);
+    // Additional method to get exchange requests by user email
+    public List<ExchangeRequest> getExchangeRequestsByUserEmail(String email) {
+        return exchangeRequestRepository.findByExchangerEmail(email);
+    }
+
+    // Additional method to update item status
+    public Item updateItemStatus(Long id, String status) {
+        Item item = itemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+        item.setStatus(status);
+        return itemRepository.save(item);
+    }
+
+    // Get available items for exchange
+    public List<Item> getAvailableItems() {
+        return itemRepository.findByStatusIgnoreCase("available");
+    }
+
+    // Get items by multiple criteria
+    public List<Item> getItemsByCategoryAndStatus(String category, String status) {
+        return itemRepository.findByCategoryIgnoreCaseAndStatusIgnoreCase(category, status);
+    }
+
+    // Get exchange request by ID
+    public Optional<ExchangeRequest> getExchangeRequestById(Long id) {
+        return exchangeRequestRepository.findById(id);
     }
 }

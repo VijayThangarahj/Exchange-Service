@@ -1,9 +1,7 @@
 package com.careandshare.exchange.Controller;
 
-
 import com.careandshare.exchange.Model.ExchangeRequest;
 import com.careandshare.exchange.Model.Item;
-
 import com.careandshare.exchange.Service.ItemService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,12 +26,12 @@ public class ExchangeController {
         return ResponseEntity.ok(itemService.getExchangeItems());
     }
 
-    // 🔹 Create exchange request
+    // 🔹 Create exchange request - Updated parameter names
     @PostMapping("/request")
     public ResponseEntity<ExchangeRequest> createExchangeRequest(
-            @RequestParam Long requesterItemId,
+            @RequestParam Long offeredItemId, // Changed from requesterItemId to offeredItemId
             @RequestParam Long requestedItemId) {
-        ExchangeRequest request = itemService.createExchangeRequest(requesterItemId, requestedItemId);
+        ExchangeRequest request = itemService.createExchangeRequest(offeredItemId, requestedItemId);
         return ResponseEntity.status(HttpStatus.CREATED).body(request);
     }
 

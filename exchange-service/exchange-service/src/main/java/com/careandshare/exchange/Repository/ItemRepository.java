@@ -7,32 +7,22 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface ItemRepository extends JpaRepository<Item, Long> {
-
     List<Item> findByCategoryIgnoreCaseAndStatusIgnoreCase(String category, String status);
-
-    List<Item> findByOwnerNameIgnoreCase(String ownerName);
-
-    List<Item> findByOwnerEmailIgnoreCase(String ownerEmail);
-
     List<Item> findByStatusIgnoreCase(String status);
-
     List<Item> findByCategoryIgnoreCase(String category);
+    List<Item> findByOwnerEmailIgnoreCase(String email);
+    List<Item> findBySubmittedByIgnoreCase(String email);
 
-    List<Item> findBySubmittedByIgnoreCase(String submittedBy);
+    // Add this method for finding requested item by title and owner
+    @Query("SELECT i FROM Item i WHERE LOWER(i.title) = LOWER(:title) AND LOWER(i.ownerEmail) = LOWER(:ownerEmail)")
+    List<Item> findByTitleAndOwnerEmail(@Param("title") String title, @Param("ownerEmail") String ownerEmail);
 
-    List<Item> findBySubmittedByIgnoreCaseAndStatusIgnoreCase(String submittedBy, String status);
-
-    @Query("SELECT i FROM Item i WHERE LOWER(i.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(i.description) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+    @Query("SELECT i FROM Item i WHERE " +
+            "LOWER(i.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(i.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(i.category) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     List<Item> searchItems(@Param("searchTerm") String searchTerm);
-
-    @Query("SELECT i FROM Item i WHERE (LOWER(i.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(i.description) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) AND LOWER(i.status) = LOWER(:status)")
-    List<Item> searchItemsByStatus(@Param("searchTerm") String searchTerm, @Param("status") String status);
-
-    Optional<Item> findById(Long id);
-
-    long count();
 }
